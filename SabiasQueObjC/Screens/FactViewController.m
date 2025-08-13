@@ -21,6 +21,9 @@
 @property (nonatomic, strong) UIButton *nextButton;
 @property (nonatomic, strong) UIButton *favoriteButton;
 @property (nonatomic, strong) UIButton *shareButton;
+
+// Diccionario de URLs de imágenes para cada dato
+@property (nonatomic, strong) NSDictionary<NSString *, NSString *> *factImageURLs;
 @end
 
 @implementation FactViewController
@@ -30,8 +33,63 @@
     _categoryKey = key ?: @"ciencia";
     _facts = [FactProvider factsForCategory:_categoryKey];
     _index = 0;
+    [self setupImageURLs];
   }
   return self;
+}
+
+- (void)setupImageURLs {
+  // URLs de imágenes específicas para cada dato curioso
+  // Usando Unsplash API para imágenes relacionadas con cada dato
+  
+  self.factImageURLs = @{
+      @"El corazón de un camarón está en su cabeza":
+            @"https://images.unsplash.com/photo-1559737558-2f5a35f4523b?w=400&h=200&fit=crop", // Camarones/Prawns
+      
+    @"Los pulpos tienen tres corazones y sangre azul":
+      @"https://images.unsplash.com/photo-1545671913-b89ac1b4ac10?w=400&h=200&fit=crop", // Pulpo
+      
+    @"Un día en Venus equivale a 243 días terrestres":
+      @"https://images.unsplash.com/photo-1630694093867-4b947d812bf0?w=400&h=200&fit=crop", // Venus (planeta naranja)
+      
+      @"El bambú puede crecer hasta 91 cm en un solo día":
+            @"https://images.unsplash.com/photo-1567225557594-88d73e55f2cb?w=400&h=200&fit=crop", // Bambú verde
+      
+    @"Las abejas pueden reconocer rostros humanos":
+      @"https://images.unsplash.com/photo-1568526381923-caf3fd520382?w=400&h=200&fit=crop", // Abeja
+      
+    // HISTORIA
+    @"Las pirámides de Giza eran blancas y brillantes originalmente":
+      @"https://images.unsplash.com/photo-1539650116574-8efeb43e2750?w=400&h=200&fit=crop", // Pirámides
+      
+    @"Los vikingos llegaron a América 500 años antes que Colón":
+      @"https://images.unsplash.com/photo-1599930113854-d6d7fd521f10?w=400&h=200&fit=crop", // Barco vikingo
+      
+    @"El Imperio Romano duró más de 1000 años":
+      @"https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=400&h=200&fit=crop", // Coliseo Romano
+      
+      @"Cleopatra vivió más cerca del iPhone que de la construcción de las pirámides":
+            @"https://images.pexels.com/photos/3199399/pexels-photo-3199399.jpeg?auto=compress&cs=tinysrgb&w=400&h=200&fit=crop", // Egipto/Cleopatra
+      
+    @"La Universidad de Oxford es más antigua que el Imperio Azteca":
+      @"https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=400&h=200&fit=crop", // Universidad Oxford
+      
+    // TECNOLOGÍA
+    @"El primer mensaje de texto se envió en 1992":
+      @"https://images.unsplash.com/photo-1530319067432-f2a729c03db5?w=400&h=200&fit=crop", // Teléfono móvil antiguo
+      
+    @"Hay más dispositivos conectados a internet que personas en el mundo":
+      @"https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=400&h=200&fit=crop", // Red de dispositivos/Internet
+      
+    @"El 90% de los datos del mundo se crearon en los últimos 2 años":
+      @"https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=200&fit=crop", // Data/Gráficas
+      
+    @"La primera página web sigue activa desde 1991":
+      @"https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=400&h=200&fit=crop", // Código web
+      
+    @"Un iPhone tiene más poder de procesamiento que las computadoras del Apollo 11":
+      @"https://images.unsplash.com/photo-1517976547714-720226b864c1?w=400&h=200&fit=crop"  // Apollo/Espacio
+  };
 }
 
 - (void)viewDidLoad {
@@ -89,6 +147,21 @@
   self.factImageView.clipsToBounds = YES;
   self.factImageView.backgroundColor = [UIColor systemGray6Color];
   [self.factCard addSubview:self.factImageView];
+  
+  // Agregar imagen placeholder
+  UIImage *placeholderImage = [self createPlaceholderImage];
+  self.factImageView.image = placeholderImage;
+  
+  // Agregar un indicador de carga para la imagen
+  UIActivityIndicatorView *loadingIndicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium];
+  loadingIndicator.translatesAutoresizingMaskIntoConstraints = NO;
+  loadingIndicator.hidesWhenStopped = YES;
+  loadingIndicator.tag = 999; // Tag para identificarlo después
+  [self.factImageView addSubview:loadingIndicator];
+  [NSLayoutConstraint activateConstraints:@[
+    [loadingIndicator.centerXAnchor constraintEqualToAnchor:self.factImageView.centerXAnchor],
+    [loadingIndicator.centerYAnchor constraintEqualToAnchor:self.factImageView.centerYAnchor]
+  ]];
 
   self.factLabel = [UILabel new];
   self.factLabel.translatesAutoresizingMaskIntoConstraints = NO;
@@ -189,6 +262,52 @@
   [self loadFactImage];
 }
 
+- (UIImage *)createPlaceholderImage {
+  // Crear una imagen placeholder con gradiente y ícono
+  CGSize size = CGSizeMake(400, 200);
+  UIGraphicsBeginImageContextWithOptions(size, NO, 0.0);
+  CGContextRef context = UIGraphicsGetCurrentContext();
+  
+  // Crear gradiente basado en la categoría
+  NSArray<UIColor *> *gradientColors = [UIColor gradientForCategoryKey:self.categoryKey];
+  CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+  
+  NSMutableArray *cgColors = [NSMutableArray array];
+  for (UIColor *color in gradientColors) {
+    // Hacer los colores más suaves para el placeholder
+    UIColor *softColor = [color colorWithAlphaComponent:0.3];
+    [cgColors addObject:(id)softColor.CGColor];
+  }
+  
+  CGGradientRef gradient = CGGradientCreateWithColors(colorSpace, (__bridge CFArrayRef)cgColors, NULL);
+  CGPoint startPoint = CGPointMake(0, 0);
+  CGPoint endPoint = CGPointMake(size.width, size.height);
+  CGContextDrawLinearGradient(context, gradient, startPoint, endPoint, 0);
+  
+  // Añadir ícono SF Symbol en el centro
+  NSString *iconName = @"photo";
+  if ([self.categoryKey isEqualToString:@"ciencia"]) {
+    iconName = @"sparkles";
+  } else if ([self.categoryKey isEqualToString:@"historia"]) {
+    iconName = @"clock";
+  } else if ([self.categoryKey isEqualToString:@"tecnologia"]) {
+    iconName = @"cpu";
+  }
+  
+  UIImage *icon = [UIImage systemImageNamed:iconName];
+  UIImage *tintedIcon = [icon imageWithTintColor:[UIColor colorWithWhite:1.0 alpha:0.5]];
+  CGRect iconRect = CGRectMake((size.width - 60) / 2, (size.height - 60) / 2, 60, 60);
+  [tintedIcon drawInRect:iconRect];
+  
+  UIImage *placeholderImage = UIGraphicsGetImageFromCurrentImageContext();
+  UIGraphicsEndImageContext();
+  
+  CGGradientRelease(gradient);
+  CGColorSpaceRelease(colorSpace);
+  
+  return placeholderImage;
+}
+
 - (void)goBack {
   [self.navigationController popViewControllerAnimated:YES];
 }
@@ -220,48 +339,52 @@
 }
 
 - (void)loadFactImage {
-  // Cargar imagen relacionada con la categoría desde URL
-  NSArray *scienceImages = @[
-    @"https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&h=200&fit=crop",
-    @"https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=200&fit=crop",
-    @"https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=400&h=200&fit=crop",
-    @"https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&h=200&fit=crop",
-    @"https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?w=400&h=200&fit=crop"
-  ];
+  // Obtener el dato actual
+  NSString *currentFact = self.facts[self.index];
   
-  NSArray *historyImages = @[
-    @"https://images.unsplash.com/photo-1461360228754-6e81c478b882?w=400&h=200&fit=crop",
-    @"https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=200&fit=crop",
-    @"https://images.unsplash.com/photo-1529651737248-dad5e287768e?w=400&h=200&fit=crop",
-    @"https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&h=200&fit=crop",
-    @"https://images.unsplash.com/photo-1447069387593-a5de0862481e?w=400&h=200&fit=crop"
-  ];
+  // Buscar la URL de imagen correspondiente
+  NSString *imageURL = self.factImageURLs[currentFact];
   
-  NSArray *techImages = @[
-    @"https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=200&fit=crop",
-    @"https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=400&h=200&fit=crop",
-    @"https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=400&h=200&fit=crop",
-    @"https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=400&h=200&fit=crop",
-    @"https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=400&h=200&fit=crop"
-  ];
-  
-  NSArray *images;
-  if ([self.categoryKey isEqualToString:@"ciencia"]) {
-    images = scienceImages;
-  } else if ([self.categoryKey isEqualToString:@"historia"]) {
-    images = historyImages;
-  } else {
-    images = techImages;
+  // Si no hay URL específica, usar una imagen genérica para la categoría
+  if (!imageURL) {
+    if ([self.categoryKey isEqualToString:@"ciencia"]) {
+      imageURL = @"https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=200&fit=crop"; // Ciencia genérica
+    } else if ([self.categoryKey isEqualToString:@"historia"]) {
+      imageURL = @"https://images.unsplash.com/photo-1461360228754-6e81c478b882?w=400&h=200&fit=crop"; // Historia genérica
+    } else {
+      imageURL = @"https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=200&fit=crop"; // Tecnología genérica
+    }
   }
   
-  NSString *imageURL = images[self.index % images.count];
+  // Mostrar placeholder inmediatamente
+  self.factImageView.image = [self createPlaceholderImage];
   
+  // Mostrar indicador de carga
+  UIActivityIndicatorView *loadingIndicator = (UIActivityIndicatorView *)[self.factImageView viewWithTag:999];
+  [loadingIndicator startAnimating];
+  
+  // Cargar imagen de forma asíncrona
   dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
     NSData *imageData = [NSData dataWithContentsOfURL:[NSURL URLWithString:imageURL]];
     if (imageData) {
       UIImage *image = [UIImage imageWithData:imageData];
       dispatch_async(dispatch_get_main_queue(), ^{
-        self.factImageView.image = image;
+        // Detener indicador de carga
+        [loadingIndicator stopAnimating];
+        
+        // Mostrar imagen con animación suave de fade-in
+        [UIView transitionWithView:self.factImageView
+                          duration:0.3
+                           options:UIViewAnimationOptionTransitionCrossDissolve
+                        animations:^{
+                          self.factImageView.image = image;
+                        } completion:nil];
+      });
+    } else {
+      dispatch_async(dispatch_get_main_queue(), ^{
+        [loadingIndicator stopAnimating];
+        // En caso de error, mantener el placeholder
+        NSLog(@"Error cargando imagen desde: %@", imageURL);
       });
     }
   });
@@ -275,7 +398,7 @@
   } completion:^(BOOL finished) {
     self.index = (self.index + 1) % self.facts.count;
     [self render];
-    [self loadFactImage];
+    [self loadFactImage]; // Cargar la imagen correspondiente al nuevo dato
     [UIView animateWithDuration:0.2 animations:^{
       self.factCard.transform = CGAffineTransformIdentity;
       self.factCard.alpha = 1.0;

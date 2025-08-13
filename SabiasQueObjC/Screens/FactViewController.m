@@ -3,6 +3,7 @@
 #import "CardView.h"
 #import "UIColor+App.h"
 #import "FactProvider.h"
+#import "FactManager.h"
 
 @interface FactViewController ()
 @property (nonatomic, copy) NSString *categoryKey;
@@ -14,9 +15,12 @@
 @property (nonatomic, strong) UILabel *counterLabel;
 
 @property (nonatomic, strong) CardView *factCard;
+@property (nonatomic, strong) UIImageView *factImageView;
 @property (nonatomic, strong) UILabel *factLabel;
 
 @property (nonatomic, strong) UIButton *nextButton;
+@property (nonatomic, strong) UIButton *favoriteButton;
+@property (nonatomic, strong) UIButton *shareButton;
 @end
 
 @implementation FactViewController
@@ -76,14 +80,53 @@
   self.factCard = [[CardView alloc] init];
   self.factCard.translatesAutoresizingMaskIntoConstraints = NO;
   [self.view addSubview:self.factCard];
+  
+  // Imagen dentro de la tarjeta
+  self.factImageView = [[UIImageView alloc] init];
+  self.factImageView.translatesAutoresizingMaskIntoConstraints = NO;
+  self.factImageView.contentMode = UIViewContentModeScaleAspectFill;
+  self.factImageView.layer.cornerRadius = 12;
+  self.factImageView.clipsToBounds = YES;
+  self.factImageView.backgroundColor = [UIColor systemGray6Color];
+  [self.factCard addSubview:self.factImageView];
 
   self.factLabel = [UILabel new];
   self.factLabel.translatesAutoresizingMaskIntoConstraints = NO;
   self.factLabel.textColor = [UIColor labelColor];
-  self.factLabel.font = [UIFont systemFontOfSize:20 weight:UIFontWeightSemibold];
+  self.factLabel.font = [UIFont systemFontOfSize:18 weight:UIFontWeightSemibold];
   self.factLabel.numberOfLines = 0;
   self.factLabel.textAlignment = NSTextAlignmentCenter;
   [self.factCard addSubview:self.factLabel];
+
+  // Botones de acción
+  UIStackView *buttonStack = [[UIStackView alloc] init];
+  buttonStack.translatesAutoresizingMaskIntoConstraints = NO;
+  buttonStack.axis = UILayoutConstraintAxisHorizontal;
+  buttonStack.spacing = 12;
+  buttonStack.distribution = UIStackViewDistributionFillEqually;
+  [self.view addSubview:buttonStack];
+  
+  // Botón Favorito
+  self.favoriteButton = [UIButton buttonWithType:UIButtonTypeSystem];
+  [self.favoriteButton setImage:[UIImage systemImageNamed:@"heart"] forState:UIControlStateNormal];
+  [self.favoriteButton setTitle:@" Favorito" forState:UIControlStateNormal];
+  self.favoriteButton.titleLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightMedium];
+  self.favoriteButton.backgroundColor = [UIColor systemGray6Color];
+  self.favoriteButton.layer.cornerRadius = 12;
+  self.favoriteButton.contentEdgeInsets = UIEdgeInsetsMake(12, 8, 12, 8);
+  [self.favoriteButton addTarget:self action:@selector(toggleFavorite) forControlEvents:UIControlEventTouchUpInside];
+  [buttonStack addArrangedSubview:self.favoriteButton];
+  
+  // Botón Compartir
+  self.shareButton = [UIButton buttonWithType:UIButtonTypeSystem];
+  [self.shareButton setImage:[UIImage systemImageNamed:@"square.and.arrow.up"] forState:UIControlStateNormal];
+  [self.shareButton setTitle:@" Compartir" forState:UIControlStateNormal];
+  self.shareButton.titleLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightMedium];
+  self.shareButton.backgroundColor = [UIColor systemGray6Color];
+  self.shareButton.layer.cornerRadius = 12;
+  self.shareButton.contentEdgeInsets = UIEdgeInsetsMake(12, 8, 12, 8);
+  [self.shareButton addTarget:self action:@selector(shareFact) forControlEvents:UIControlEventTouchUpInside];
+  [buttonStack addArrangedSubview:self.shareButton];
 
   // Botón Siguiente
   self.nextButton = [UIButton buttonWithType:UIButtonTypeSystem];
@@ -120,18 +163,30 @@
     [self.factCard.topAnchor constraintEqualToAnchor:self.header.bottomAnchor constant:20],
     [self.factCard.leadingAnchor constraintEqualToAnchor:guide.leadingAnchor constant:20],
     [self.factCard.trailingAnchor constraintEqualToAnchor:guide.trailingAnchor constant:-20],
+    
+    [self.factImageView.topAnchor constraintEqualToAnchor:self.factCard.topAnchor constant:16],
+    [self.factImageView.leadingAnchor constraintEqualToAnchor:self.factCard.leadingAnchor constant:16],
+    [self.factImageView.trailingAnchor constraintEqualToAnchor:self.factCard.trailingAnchor constant:-16],
+    [self.factImageView.heightAnchor constraintEqualToConstant:150],
 
-    [self.factLabel.topAnchor constraintEqualToAnchor:self.factCard.topAnchor constant:24],
+    [self.factLabel.topAnchor constraintEqualToAnchor:self.factImageView.bottomAnchor constant:16],
     [self.factLabel.leadingAnchor constraintEqualToAnchor:self.factCard.leadingAnchor constant:16],
     [self.factLabel.trailingAnchor constraintEqualToAnchor:self.factCard.trailingAnchor constant:-16],
     [self.factLabel.bottomAnchor constraintEqualToAnchor:self.factCard.bottomAnchor constant:-24],
+    
+    [buttonStack.topAnchor constraintEqualToAnchor:self.factCard.bottomAnchor constant:16],
+    [buttonStack.leadingAnchor constraintEqualToAnchor:guide.leadingAnchor constant:20],
+    [buttonStack.trailingAnchor constraintEqualToAnchor:guide.trailingAnchor constant:-20],
+    [buttonStack.heightAnchor constraintEqualToConstant:44],
 
-    [self.nextButton.topAnchor constraintEqualToAnchor:self.factCard.bottomAnchor constant:16],
+    [self.nextButton.topAnchor constraintEqualToAnchor:buttonStack.bottomAnchor constant:12],
     [self.nextButton.leadingAnchor constraintEqualToAnchor:guide.leadingAnchor constant:20],
-    [self.nextButton.trailingAnchor constraintEqualToAnchor:guide.trailingAnchor constant:-20]
+    [self.nextButton.trailingAnchor constraintEqualToAnchor:guide.trailingAnchor constant:-20],
+    [self.nextButton.heightAnchor constraintEqualToConstant:50]
   ]];
 
   [self render];
+  [self loadFactImage];
 }
 
 - (void)goBack {
@@ -139,24 +194,143 @@
 }
 
 - (void)render {
-  if (self.facts.count == 0) { self.factLabel.text = @"Sin datos disponibles"; return; }
+  if (self.facts.count == 0) {
+    self.factLabel.text = @"Sin datos disponibles";
+    return;
+  }
+  
   self.factLabel.text = self.facts[self.index];
   self.counterLabel.text = [NSString stringWithFormat:@"%ld/%lu", (long)(self.index+1), (unsigned long)self.facts.count];
+  
+  // Actualizar estado del botón de favorito
+  [self updateFavoriteButton];
+}
+
+- (void)updateFavoriteButton {
+  NSString *currentFact = self.facts[self.index];
+  BOOL isFavorite = [[FactManager sharedManager] isFavorite:currentFact];
+  
+  if (isFavorite) {
+    [self.favoriteButton setImage:[UIImage systemImageNamed:@"heart.fill"] forState:UIControlStateNormal];
+    self.favoriteButton.tintColor = [UIColor systemPinkColor];
+  } else {
+    [self.favoriteButton setImage:[UIImage systemImageNamed:@"heart"] forState:UIControlStateNormal];
+    self.favoriteButton.tintColor = [UIColor systemBlueColor];
+  }
+}
+
+- (void)loadFactImage {
+  // Cargar imagen relacionada con la categoría desde URL
+  NSArray *scienceImages = @[
+    @"https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&h=200&fit=crop",
+    @"https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=200&fit=crop",
+    @"https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=400&h=200&fit=crop",
+    @"https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&h=200&fit=crop",
+    @"https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?w=400&h=200&fit=crop"
+  ];
+  
+  NSArray *historyImages = @[
+    @"https://images.unsplash.com/photo-1461360228754-6e81c478b882?w=400&h=200&fit=crop",
+    @"https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=200&fit=crop",
+    @"https://images.unsplash.com/photo-1529651737248-dad5e287768e?w=400&h=200&fit=crop",
+    @"https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&h=200&fit=crop",
+    @"https://images.unsplash.com/photo-1447069387593-a5de0862481e?w=400&h=200&fit=crop"
+  ];
+  
+  NSArray *techImages = @[
+    @"https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=200&fit=crop",
+    @"https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=400&h=200&fit=crop",
+    @"https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=400&h=200&fit=crop",
+    @"https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=400&h=200&fit=crop",
+    @"https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=400&h=200&fit=crop"
+  ];
+  
+  NSArray *images;
+  if ([self.categoryKey isEqualToString:@"ciencia"]) {
+    images = scienceImages;
+  } else if ([self.categoryKey isEqualToString:@"historia"]) {
+    images = historyImages;
+  } else {
+    images = techImages;
+  }
+  
+  NSString *imageURL = images[self.index % images.count];
+  
+  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+    NSData *imageData = [NSData dataWithContentsOfURL:[NSURL URLWithString:imageURL]];
+    if (imageData) {
+      UIImage *image = [UIImage imageWithData:imageData];
+      dispatch_async(dispatch_get_main_queue(), ^{
+        self.factImageView.image = image;
+      });
+    }
+  });
 }
 
 - (void)nextFact {
-  // Animación sutil: “tap to refresh”
+  // Animación sutil
   [UIView animateWithDuration:0.15 animations:^{
     self.factCard.transform = CGAffineTransformMakeScale(0.98, 0.98);
     self.factCard.alpha = 0.8;
   } completion:^(BOOL finished) {
     self.index = (self.index + 1) % self.facts.count;
     [self render];
+    [self loadFactImage];
     [UIView animateWithDuration:0.2 animations:^{
       self.factCard.transform = CGAffineTransformIdentity;
       self.factCard.alpha = 1.0;
     }];
   }];
+}
+
+- (void)toggleFavorite {
+  NSString *currentFact = self.facts[self.index];
+  
+  if ([[FactManager sharedManager] isFavorite:currentFact]) {
+    // Remover de favoritos
+    NSDictionary *favorite = @{@"fact": currentFact, @"category": self.categoryKey};
+    [[FactManager sharedManager] removeFavorite:favorite];
+    
+    // Animación
+    [UIView animateWithDuration:0.2 animations:^{
+      self.favoriteButton.transform = CGAffineTransformMakeScale(0.8, 0.8);
+    } completion:^(BOOL finished) {
+      [UIView animateWithDuration:0.2 animations:^{
+        self.favoriteButton.transform = CGAffineTransformIdentity;
+      }];
+    }];
+  } else {
+    // Agregar a favoritos
+    [[FactManager sharedManager] addFavorite:currentFact category:self.categoryKey];
+    
+    // Animación
+    [UIView animateWithDuration:0.2 animations:^{
+      self.favoriteButton.transform = CGAffineTransformMakeScale(1.2, 1.2);
+    } completion:^(BOOL finished) {
+      [UIView animateWithDuration:0.2 animations:^{
+        self.favoriteButton.transform = CGAffineTransformIdentity;
+      }];
+    }];
+  }
+  
+  [self updateFavoriteButton];
+}
+
+- (void)shareFact {
+  NSString *currentFact = self.facts[self.index];
+  NSString *shareText = [NSString stringWithFormat:@"¿Sabías qué? %@", currentFact];
+  
+  UIActivityViewController *activityVC = [[UIActivityViewController alloc]
+                                          initWithActivityItems:@[shareText]
+                                          applicationActivities:nil];
+  
+  // Para iPad
+  if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad) {
+    activityVC.popoverPresentationController.sourceView = self.shareButton;
+    activityVC.popoverPresentationController.sourceRect = self.shareButton.bounds;
+  }
+  
+  [self presentViewController:activityVC animated:YES completion:nil];
 }
 
 @end

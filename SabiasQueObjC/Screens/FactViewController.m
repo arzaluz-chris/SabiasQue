@@ -325,7 +325,7 @@
                                           applicationActivities:nil];
   
   // Para iPad
-  if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad) {
+  if ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPad) {
     activityVC.popoverPresentationController.sourceView = self.shareButton;
     activityVC.popoverPresentationController.sourceRect = self.shareButton.bounds;
   }
